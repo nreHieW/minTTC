@@ -3,18 +3,19 @@
 # https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_config.py
 
 
+from calendar import c
 import torch
-import torch.utils.data
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     GenerationConfig,
 )
 from dataclasses import dataclass
-
 from utils import *
 import json
 from copy import deepcopy
+import wandb
+import datetime
 
 
 @dataclass
@@ -26,7 +27,8 @@ class GRPOConfig:
     beta: float = 0.01
     format_weight: float = 1.0
     ppo_clip_param: float = 0.2
-    output_dir: str = "output"
+    grad_max_norm: float = 1.0
+    run_name: str = "output"
 
     model_name: str = ""
     batch_size: int = 1
@@ -77,8 +79,14 @@ class GRPO:
         self.format_weight = args.format_weight
         self.ppo_clip_param = args.ppo_clip_param
 
-        self.metrics = {"kl": [], "reward": [], "loss": [], "accuracy_rewards": [], "format_rewards": []}
+        self.metrics = {"kl": [], "reward": [], "loss": [], "pg_loss": [], "accuracy_rewards": [], "format_rewards": [], "grad_norm": []}
         self.device = self.model.device
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.run = wandb.init(
+            project="rlvr",
+            run_name=f"{args.run_name}_{curr_time}",
+            config=args.__dict__,
+        )
 
     def _compute_advantages(self, completions: List[str], answers: List[str]):
         # Compute the rewards
@@ -122,7 +130,7 @@ class GRPO:
             ref_per_token_logps = get_per_token_logps(self.ref_model, prompt_completion_ids)
         ref_per_token_logps = ref_per_token_logps[:, prompt_length - 1 :]
 
-        per_token_logps = get_per_token_logps(self.model, prompt_completion_ids)
+        per_token_logps = get_per_token_logps(self.model, prompt_completion_ids)  # only thing with grad
         # Get rid of the prompt (-1 because of the shift done in get_per_token_logps)
         per_token_logps = per_token_logps[:, prompt_length - 1 :]
         old_per_token_logps = per_token_logps.detach()
@@ -132,42 +140,44 @@ class GRPO:
         advantages = advantages.unsqueeze(1).to(self.model.device, dtype=self.model.dtype)
         completion_mask = self._get_mask(completion_ids)
 
-        accum_loss = 0
+        for idx in range(self.epoch_per_step):
+            per_token_kl = torch.exp(ref_per_token_logps - per_token_logps) - (ref_per_token_logps - per_token_logps) - 1
 
-        for step in range(self.epoch_per_step):
-            per_token_kl = torch.exp(ref_per_token_logps - old_per_token_logps) - (ref_per_token_logps - old_per_token_logps) - 1
-
-            ratio = torch.exp(per_token_logps - per_token_logps.detach())
+            ratio = torch.exp(per_token_logps - old_per_token_logps)
             clipped_ratio = torch.clamp(ratio, 1 - self.ppo_clip_param, 1 + self.ppo_clip_param)
-            policy_loss = torch.max(-(ratio * advantages), -(clipped_ratio * advantages))
+            policy_loss = -torch.min(ratio * advantages, clipped_ratio * advantages)
 
             per_token_loss = policy_loss + self.beta * per_token_kl
             loss = ((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
-            accum_loss += loss.item()
 
             optimizer.zero_grad()
             loss.backward()
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.grad_max_norm)
             optimizer.step()
 
-            if step < self.epoch_per_step - 1:
+            if idx < self.epoch_per_step - 1:
                 per_token_logps = get_per_token_logps(self.model, prompt_completion_ids)
                 per_token_logps = per_token_logps[:, prompt_length - 1 :]
 
-        mean_kl = ((per_token_kl * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+            mean_kl = ((per_token_kl * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+            self.metrics["kl"].append(mean_kl.item())
+            self.metrics["loss"].append(loss.item())
+            self.metrics["pg_loss"].append(policy_loss.mean().item())
+            self.metrics["grad_norm"].append(grad_norm)
 
-        self.metrics["kl"].append(mean_kl.item())
         self.metrics["reward"].append(rewards.mean().item())
         self.metrics["accuracy_rewards"].append(accuracy_rewards.float().mean().item())
         self.metrics["format_rewards"].append(format_rewards.float().mean().item())
-        self.metrics["loss"].append(accum_loss / self.epoch_per_step)
 
         if log:
-            fname = f"{self.args.output_dir}/completions_{step}.json"
-            with open(fname, "w") as f:
-                json.dump(completions, f)
-            metrics = {key: sum(val) / len(val) for key, val in self.metrics.items()}
-            print(f"Step {step}: {metrics}")
+            self.log(completions, step)
 
-            self.metrics = {key: [] for key in self.metrics}
+    def log(self, completions: List[str], step: int):
+        fname = f"{self.args.run_name}/completions_{step}.json"
+        with open(fname, "w") as f:
+            json.dump(completions, f)
+        metrics = {key: sum(val) / len(val) for key, val in self.metrics.items()}
+        print(f"Step {step}: {metrics}")
+        wandb.log(metrics)
 
-        return
+        self.metrics = {key: [] for key in self.metrics}

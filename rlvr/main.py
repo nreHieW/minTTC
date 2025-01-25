@@ -7,6 +7,8 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from grpo import GRPOConfig, GRPO
 from utils import evaluate_aime
+import wandb
+import datetime
 
 
 def main():
@@ -18,7 +20,8 @@ def main():
         beta=0.01,
         format_weight=1.0,
         ppo_clip_param=0.2,
-        output_dir="output",
+        grad_max_norm=1.0,
+        run_name="Qwen2.5-0.5B-Instruct",
         model_name="Qwen/Qwen2.5-0.5B-Instruct",
         batch_size=1,
         log_interval=2,
@@ -27,8 +30,16 @@ def main():
         num_epochs=3,
     )
 
-    if not os.path.exists(config.output_dir):
-        os.makedirs(config.output_dir)
+    output_dir = config.run_name
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    curr_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run = wandb.init(
+        project="rlvr",
+        run_name=f"{config.run_name}_{curr_time}",
+        config=config.__dict__,
+    )
 
     # ds_dict = load_dataset("nreHieW/Extracted_NuminaMath_Code_Contests")
     # train_ds = ds_dict["train"].filter(lambda example: example["type"] == "math")
