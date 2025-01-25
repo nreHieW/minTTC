@@ -79,21 +79,9 @@ def extract_answer(response: str) -> Optional[int]:
     return None
 
 
-def check_format(s) -> int:
-    if "<think>" or "</think>" not in s:
-        return 0
-
-    if "<answer>" or "</answer>" not in s:
-        return 0
-
-    start_idx = s.find("<think>")
-    end_idx = s.find("</think>")
-    L = len(s)
-    thinking_length = end_idx - start_idx
-    if thinking_length > 0.7 * L:
-        return 1
-    else:
-        return 0
+def check_format(s: str) -> int:
+    pattern = r"^<think>.+?</think><answer>.+?</answer>$"
+    return int(bool(re.fullmatch(pattern, s, re.DOTALL)))
 
 
 def check_accuracy(completion: str, answer: str):
