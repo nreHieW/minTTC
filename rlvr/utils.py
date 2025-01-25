@@ -23,10 +23,12 @@ Important: Always end your solution with the final answer in one of these two fo
 
 where X is your integer answer between 0 and 999."""
 
-SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
-<answer> answer here </answer>. User: {prompt} Assistant:"""
+# SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
+# <answer> answer here </answer>. User: {prompt} Assistant:"""
 # SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and you solve it. You first thinks about the reasoning process in the mind and then provide the user with the answer. You must put reasoning process and answer within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
 # <answer> answer here </answer>. User: {prompt}"""
+SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
+# <answer> answer here </answer>."""
 
 
 def extract_answer(response: str) -> Optional[int]:
@@ -104,13 +106,15 @@ def check_accuracy(completion: str, answer: str):
 
 
 @torch.no_grad()
-def make_n_attempts(problem: str, model: nn.Module, tokenizer, n: int) -> List[Dict]:
+def make_n_attempts(problem: str, model: nn.Module, tokenizer, n: int, max_length: int, temperature: float) -> List[Dict]:
     attempts = []
     remaining_attempts = n
 
     while remaining_attempts > 0:
-        prompt = AIME_SYSTEM_PROMPT + "\n\n" + problem
-        completion_ids = model.generate(prompt, do_sample=True, num_return_sequences=1)
+        # prompt = AIME_SYSTEM_PROMPT + "\n\n" + problem
+        prompt = tokenizer.apply_chat_template([{"role": "system", "content": SYSTEM_PROMPT + AIME_SYSTEM_PROMPT}, {"role": "user", "content": problem}], tokenize=False, add_generation_prompt=True)
+        inputs = tokenizer(prompt, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False).to(model.device)
+        completion_ids = model.generate(**inputs, do_sample=True, num_return_sequences=1, max_length=max_length, temperature=temperature, pad_token_id=tokenizer.pad_token_id)
         response = tokenizer.decode(completion_ids[0], skip_special_tokens=True)
         predicted_answer = extract_answer(response)
         attempts.append({"attempt_number": len(attempts) + 1, "response": response, "predicted_answer": predicted_answer})
@@ -125,7 +129,7 @@ def evaluate_pass_at_n(attempts: List[Dict], correct_answer: int) -> Tuple[bool,
     return False, None
 
 
-def evaluate_aime(dataset, model: nn.Module, tokenizer, n_attempts: int = 1) -> Tuple[float, List[str]]:
+def evaluate_aime(dataset, model: nn.Module, tokenizer, max_length: int = 1024, temperature: float = 0.7, n_attempts: int = 1) -> Tuple[float, List[str]]:
 
     results = []
     for _, item in enumerate(tqdm(dataset, desc="Evaluating problems")):
@@ -135,7 +139,7 @@ def evaluate_aime(dataset, model: nn.Module, tokenizer, n_attempts: int = 1) -> 
         correct_answer = int(item["answer"])
 
         # Make n attempts for each problem
-        attempts = make_n_attempts(problem_text, model, tokenizer, n_attempts)
+        attempts = make_n_attempts(problem_text, model, tokenizer, n_attempts, max_length, temperature)
         is_correct, first_correct = evaluate_pass_at_n(attempts, correct_answer)
 
         result = {"index": id, "problem": problem_text, "attempts": attempts, "correct_answer": correct_answer, "is_correct": is_correct, "first_correct_attempt": first_correct}
