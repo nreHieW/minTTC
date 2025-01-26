@@ -23,10 +23,11 @@ Important: Always end your solution with the final answer in one of these two fo
 
 where X is your integer answer between 0 and 999."""
 
+# Base
 # SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
 # <answer> answer here </answer>. User: {prompt} Assistant:"""
-# SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and you solve it. You first thinks about the reasoning process in the mind and then provide the user with the answer. You must put reasoning process and answer within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
-# <answer> answer here </answer>. User: {prompt}"""
+
+# Instruct
 SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
 # <answer> answer here </answer>."""
 

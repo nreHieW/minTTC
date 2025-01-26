@@ -20,10 +20,10 @@ import datetime
 
 @dataclass
 class GRPOConfig:
-    num_generations: int = 2
+    num_generations: int = 4
     max_completion_length: int = 1024
     temperature: float = 0.7
-    epochs_per_step: int = 1
+    epochs_per_step: int = 4
     beta: float = 0.01
     format_weight: float = 1.0
     ppo_clip_param: float = 0.2
@@ -79,12 +79,12 @@ class GRPO:
         self.format_weight = args.format_weight
         self.ppo_clip_param = args.ppo_clip_param
 
-        self.metrics = {"kl": [], "reward": [], "loss": [], "pg_loss": [], "accuracy_rewards": [], "format_rewards": [], "grad_norm": []}
+        self.metrics = {"kl": [], "reward": [], "loss": [], "pg_loss": [], "accuracy_rewards": [], "format_rewards": [], "grad_norm": [], "avg_seq_len": []}
         self.device = self.model.device
         curr_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.run = wandb.init(
             project="rlvr",
-            run_name=f"{args.run_name}_{curr_time}",
+            name=f"{args.run_name}_{curr_time}",
             config=args.__dict__,
         )
 
@@ -119,7 +119,7 @@ class GRPO:
         return completion_mask
 
     def step(self, prompts: List[str], answers: List[str], optimizer: torch.optim.Optimizer, log: bool = False, step: int = None) -> None:
-        # prompts_text = [SYSTEM_PROMPT.format(prompt=x["question"]) for x in inputs]
+        # prompts_text = [SYSTEM_PROMPT.format(prompt=x) for x in prompts]
         prompts_text = [self.tokenizer.apply_chat_template([{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": x}], tokenize=False, add_generation_prompt=True) for x in prompts]
         prompt_inputs = self.tokenizer(prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False).to(self.model.device)
 
@@ -148,7 +148,7 @@ class GRPO:
             policy_loss = -torch.min(ratio * advantages, clipped_ratio * advantages)
 
             per_token_loss = policy_loss + self.beta * per_token_kl
-            loss = ((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+            loss = (per_token_loss * completion_mask).sum() / completion_mask.sum()
 
             optimizer.zero_grad()
             loss.backward()
@@ -159,15 +159,19 @@ class GRPO:
                 per_token_logps = get_per_token_logps(self.model, prompt_completion_ids)
                 per_token_logps = per_token_logps[:, prompt_length - 1 :]
 
-            mean_kl = ((per_token_kl * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+            mean_kl = (per_token_kl * completion_mask).sum() / completion_mask.sum()
             self.metrics["kl"].append(mean_kl.item())
             self.metrics["loss"].append(loss.item())
             self.metrics["pg_loss"].append(policy_loss.mean().item())
-            self.metrics["grad_norm"].append(grad_norm)
+            self.metrics["grad_norm"].append(grad_norm.item())
 
         self.metrics["reward"].append(rewards.mean().item())
         self.metrics["accuracy_rewards"].append(accuracy_rewards.float().mean().item())
         self.metrics["format_rewards"].append(format_rewards.float().mean().item())
+
+        completion_lengths = completion_mask.sum(dim=1).float()
+        avg_seq_len = completion_lengths.mean().item()
+        self.metrics["avg_seq_len"].append(avg_seq_len)
 
         if log:
             self.log(completions, step)
@@ -176,8 +180,23 @@ class GRPO:
         fname = f"{self.args.run_name}/completions_{step}.json"
         with open(fname, "w") as f:
             json.dump(completions, f)
+
+        wandb.save(fname)
         metrics = {key: sum(val) / len(val) for key, val in self.metrics.items()}
         print(f"Step {step}: {metrics}")
         wandb.log(metrics)
 
         self.metrics = {key: [] for key in self.metrics}
+
+    def evaluate(self, aime: torch.utils.data.Dataset, epoch: int, step: int):
+        self.model.eval()
+        accuracy, completions = evaluate_aime(aime, self.model, self.tokenizer, max_length=self.args.max_completion_length, temperature=self.args.temperature, n_attempts=1)
+        print(f"Epoch {epoch}, Batch {step}, AIME accuracy: {accuracy})")
+        wandb.log({"AIME_accuracy": accuracy})
+
+        fname = f"{self.args.run_name}/AIME_completions_{epoch}_{step}.json"
+        with open(fname, "w") as f:
+            json.dump(completions, f)
+
+        wandb.save(fname)
+        self.model.train()
