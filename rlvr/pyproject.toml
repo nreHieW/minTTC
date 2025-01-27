@@ -1,0 +1,15 @@
+[project]
+name = "rlvr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=3.2.0",
+    "math-verify>=0.3.2",
+    "torch>=2.5.1",
+    "tqdm>=4.67.1",
+    "transformers>=4.48.1",
+    "trl>=0.13.0",
+    "wandb>=0.19.4",
+]

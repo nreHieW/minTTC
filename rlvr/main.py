@@ -1,14 +1,10 @@
 import torch
 import torch.nn
 from torch.utils.data import DataLoader
-import json
 import os
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from grpo import GRPOConfig, GRPO
-from utils import evaluate_aime
-import wandb
-import datetime
 
 
 def main():
