@@ -175,6 +175,7 @@ class GRPO:
 
         if log:
             self.log(completions, step)
+        torch.cuda.empty_cache()
 
     def log(self, completions: List[str], step: int):
         fname = f"{self.args.run_name}/completions_{step}.json"

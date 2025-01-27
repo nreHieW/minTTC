@@ -6,7 +6,6 @@ import torch.nn as nn
 
 import re
 from typing import List, Dict, Tuple, Optional
-from datasets import load_dataset
 from tqdm import tqdm
 from math_verify import verify
 
@@ -23,13 +22,12 @@ Important: Always end your solution with the final answer in one of these two fo
 
 where X is your integer answer between 0 and 999."""
 
-# Base
+# DeepSeek R1 Original (Base)
 # SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
 # <answer> answer here </answer>. User: {prompt} Assistant:"""
 
 # Instruct
-SYSTEM_PROMPT = """A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think>
-# <answer> answer here </answer>."""
+SYSTEM_PROMPT = """You are a helpful assistant. When the user asks a question, your first think about the reasoning process before providing the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think><answer> answer here </answer>."""
 
 
 def extract_answer(response: str) -> Optional[int]:
