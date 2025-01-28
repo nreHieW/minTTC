@@ -417,7 +417,7 @@ wheels = [
 
 [[package]]
 name = "huggingface-hub"
-version = "0.27.1"
+version = "0.28.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -428,9 +428,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/d2/d6976de7542792fc077b498d64af64882b6d8bb40679284ec0bff77d5929/huggingface_hub-0.27.1.tar.gz", hash = "sha256:c004463ca870283909d715d20f066ebd6968c2207dae9393fdffb3c1d4d8f98b", size = 379407 }
+sdist = { url = "https://files.pythonhosted.org/packages/10/fd/c8ff7693942dac1c642ec3a93a2bf7cbac36e2e920dd61a79965d9a662b7/huggingface_hub-0.28.0.tar.gz", hash = "sha256:c2b18c02a47d4384763caddb4d0ab2a8fc6c16e0800d6de4d55d0a896244aba3", size = 387079 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/3f/50f6b25fafdcfb1c089187a328c95081abf882309afd86f4053951507cd1/huggingface_hub-0.27.1-py3-none-any.whl", hash = "sha256:1c5155ca7d60b60c2e2fc38cbb3ffb7f7c3adf48f824015b219af9061771daec", size = 450658 },
+    { url = "https://files.pythonhosted.org/packages/cc/ac/07f92291add9f425f40b3fd70a1d0c7117f6e1152599abc2bd7fda5b6abe/huggingface_hub-0.28.0-py3-none-any.whl", hash = "sha256:71cff4e500efe68061d94b7f6d3114e183715088be7a90bf4dd84af83b5f5cdb", size = 464084 },
 ]
 
 [[package]]
@@ -456,15 +456,15 @@ wheels = [
 
 [[package]]
 name = "latex2sympy2-extended"
-version = "0.9.2"
+version = "0.9.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "antlr4-python3-runtime" },
     { name = "sympy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/d7/7d433fa5ddc22fecbf5dbce4675dbaf1eef9e50f80e779682dd38a1da5fc/latex2sympy2_extended-0.9.2.tar.gz", hash = "sha256:d26362641d5ddd942bca9d8a4ab5d0b04c6a773fcb7ec19cf11250759e8f8aee", size = 78724 }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/a1/d7eeee86cfce2dbe2ec255f8fcc3098bf94194179f6ca17e3b2281c83ade/latex2sympy2_extended-0.9.3.tar.gz", hash = "sha256:f25ae70766fe4b48fd154af96260531098aa271568f4fe01a572f2747182b4fa", size = 79173 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/12/6f3d7369ffbaf0b5954da833b86aae5cbf9984fc14a31d63d3948925a088/latex2sympy2_extended-0.9.2-py3-none-any.whl", hash = "sha256:4047350b5e5c6a6f8e8852a68f2c6d03cd7d93e38a89d45e117b751230f8b2a9", size = 77669 },
+    { url = "https://files.pythonhosted.org/packages/53/45/74c92a1cf8d62b73971faf53b576b73118b48e1067488b12ebf0c1dd482d/latex2sympy2_extended-0.9.3-py3-none-any.whl", hash = "sha256:cd285a10402072a99e3becd0fdae0990255db6d9c5f11f0afd35bb1759c0fa83", size = 78093 },
 ]
 
 [[package]]
@@ -539,14 +539,14 @@ wheels = [
 
 [[package]]
 name = "math-verify"
-version = "0.3.2"
+version = "0.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "latex2sympy2-extended" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/25/11fd651f478c5010efff3c6519120e686dcac1f8f1d99081c16230315c73/math_verify-0.3.2.tar.gz", hash = "sha256:e31b75137545efb1656af2c8c2e127b79f673c4e5c34901183404b18166466be", size = 35500 }
+sdist = { url = "https://files.pythonhosted.org/packages/98/4c/293c8e560fba2c74413c517ba663093c83cddd333fcf7e3b118ca2a4fd64/math_verify-0.3.3.tar.gz", hash = "sha256:cb84603cf5a461a1318bea1bf6e76bc0b745b897b8dfe0e70045a3b469c09554", size = 36359 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/18/c1184ebd52bc67c0282fe14548ad50fda584b1efcbbf8b5d3fb29c6b65dc/math_verify-0.3.2-py3-none-any.whl", hash = "sha256:112d8438c68aab261df23c48d517239573aa8065b21b7eafa51994de1ff8ee68", size = 18587 },
+    { url = "https://files.pythonhosted.org/packages/a7/b0/1aae11ea9c11ff81d4a95fb5c7b759b6800bc5303c7b59f52113cb340674/math_verify-0.3.3-py3-none-any.whl", hash = "sha256:0a2817e4fb216381735d7eced47924db8a29d3d75a464e8eee04789f9fc96930", size = 19040 },
 ]
 
 [[package]]
@@ -557,6 +557,34 @@ sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec9
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979 },
 ]
+
+[[package]]
+name = "minttc"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "datasets" },
+    { name = "math-verify" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "transformers" },
+    { name = "trl" },
+    { name = "wandb" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "datasets", specifier = ">=3.2.0" },
+    { name = "math-verify", specifier = ">=0.3.2" },
+    { name = "torch", specifier = ">=2.5.1" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+    { name = "transformers", specifier = ">=4.48.1" },
+    { name = "trl", git = "https://github.com/huggingface/trl.git" },
+    { name = "wandb", specifier = ">=0.19.4" },
+]
+
+[package.metadata.requires-dev]
+dev = []
 
 [[package]]
 name = "mpmath"
@@ -765,7 +793,7 @@ name = "nvidia-cudnn-cu12"
 version = "9.1.0.70"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/fd/713452cd72343f682b1c7b9321e23829f00b842ceaedcda96e742ea0b0b3/nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl", hash = "sha256:165764f44ef8c61fcdfdfdbe769d687e06374059fbb388b6c89ecb0e28793a6f", size = 664752741 },
@@ -776,7 +804,7 @@ name = "nvidia-cufft-cu12"
 version = "11.2.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/94/3266821f65b92b3138631e9c8e7fe1fb513804ac934485a8d05776e1dd43/nvidia_cufft_cu12-11.2.1.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:f083fc24912aa410be21fa16d157fed2055dab1cc4b6934a0e03cba69eb242b9", size = 211459117 },
@@ -795,9 +823,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.6.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-cusparse-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cusparse-cu12" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/e1/5b9089a4b2a4790dfdea8b3a006052cfecff58139d5a4e34cb1a51df8d6f/nvidia_cusolver_cu12-11.6.1.9-py3-none-manylinux2014_x86_64.whl", hash = "sha256:19e33fa442bcfd085b3086c4ebf7e8debc07cfe01e11513cc6d332fd918ac260", size = 127936057 },
@@ -808,7 +836,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.3.1.170"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/f7/97a9ea26ed4bbbfc2d470994b8b4f338ef663be97b8f677519ac195e113d/nvidia_cusparse_cu12-12.3.1.170-py3-none-manylinux2014_x86_64.whl", hash = "sha256:ea4f11a2904e2a8dc4b1833cc1b5181cde564edd0d5cd33e3c168eff2d1863f1", size = 207454763 },
@@ -1310,31 +1338,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rlvr"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "datasets" },
-    { name = "math-verify" },
-    { name = "torch" },
-    { name = "tqdm" },
-    { name = "transformers" },
-    { name = "trl" },
-    { name = "wandb" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "datasets", specifier = ">=3.2.0" },
-    { name = "math-verify", specifier = ">=0.3.2" },
-    { name = "torch", specifier = ">=2.5.1" },
-    { name = "tqdm", specifier = ">=4.67.1" },
-    { name = "transformers", specifier = ">=4.48.1" },
-    { name = "trl", specifier = ">=0.13.0" },
-    { name = "wandb", specifier = ">=0.19.4" },
-]
-
-[[package]]
 name = "safetensors"
 version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1573,7 +1576,7 @@ name = "triton"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", marker = "sys_platform == 'linux'" },
+    { name = "filelock" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/98/29/69aa56dc0b2eb2602b553881e34243475ea2afd9699be042316842788ff5/triton-3.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6b0dd10a925263abbe9fa37dcde67a5e9b2383fc269fdf59f5657cac38c5d1d8", size = 209460013 },
@@ -1583,17 +1586,13 @@ wheels = [
 
 [[package]]
 name = "trl"
-version = "0.13.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.14.0.dev0"
+source = { git = "https://github.com/huggingface/trl.git#4659ad916fe3e05fd81bf1297db7a6767d2c69bc" }
 dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
     { name = "rich" },
     { name = "transformers" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/43/64/db31b6acdeb0b40a59374601e7a032d4efab872a15d3a2fc24fc7d67db08/trl-0.13.0.tar.gz", hash = "sha256:ad3259098457b92a94f95de6da4138807c846919beacccf22d26ac238987b50b", size = 300701 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/4b/73924544701445ee8cb55cce80a5917242d6f8a6f16c76408e29111209d7/trl-0.13.0-py3-none-any.whl", hash = "sha256:792aa68a98821934a890182c842f9f8b43127eea510a7c2bd660a10bc59de7e8", size = 293448 },
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [project]
-name = "rlvr"
+name = "minttc"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -13,3 +13,9 @@ dependencies = [
     "trl>=0.13.0",
     "wandb>=0.19.4",
 ]
+
+[tool.uv.sources]
+trl = { git = "https://github.com/huggingface/trl.git" }
+
+[dependency-groups]
+dev = []

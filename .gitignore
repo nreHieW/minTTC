@@ -1,2 +1,5 @@
 *.ipynb
 .vscode
+__pycache__
+wandb
+outputs
