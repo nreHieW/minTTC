@@ -13,3 +13,23 @@ The image below are the results on GSM8K. The performance gains is roughly 10%. 
     <img src="../assets/mcts.png" alt="GSM8K Results" width="600">
     <p style="font-size: small;"><em>GSM8K Results</em></p>
 </div>
+
+## 1.5B
+Default:
+Accuracy: 7/30 (23.33%)
+cfg=Config(
+                    branching_factor=8,
+                    max_length_per_stage=256,
+                    max_depth=64,
+                    simulate_max_length=32768,
+                    num_steps=8,
+                ):
+Accuracy: 12/30 (40.00%)
+Config(
+                    branching_factor=16,
+                    max_length_per_stage=256,
+                    max_depth=64,
+                    simulate_max_length=32768,
+                    num_steps=8,
+                )
+Accuracy: 10/30 (33.33%)

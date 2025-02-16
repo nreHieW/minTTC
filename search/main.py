@@ -1,209 +1,138 @@
-import math
-import random
-from dataclasses import dataclass, field
-from typing import List, Optional
-
+import requests
+import json
 import torch
-import torch.nn.functional as F
+from tqdm import tqdm
+from argparse import ArgumentParser
 from transformers import AutoModel, AutoTokenizer
+from vllm import LLM, SamplingParams
+from mcts import MCTS, Node, Config
+from latex2sympy2_extended import NormalizationConfig
+from math_verify import LatexExtractionConfig, parse, verify
 
 
-@dataclass
-class Config:
-    branching_factor: int = 5
-    max_length_per_stage: int = 50
-    simulate_max_length: int = 100
-    num_steps: int = 5
-    max_depth: int = 8
+def get_data():
+    response = requests.get("https://github.com/GAIR-NLP/AIME-Preview/raw/refs/heads/main/eval/data/aime/test2024.jsonl")
+    data = []
+    for line in response.iter_lines():
+        data.append(json.loads(line))
+    return data
 
 
-@dataclass
-class Config:
-    branching_factor: int = 5
-    max_length_per_stage: int = 50
-    simulate_max_length: int = 100
-    num_steps: int = 5
-    max_depth: int = 8
+def get_args():
+    parser = ArgumentParser()
+    parser.add_argument("--model_name", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
+    parser.add_argument("--prm_model_name", type=str, default="Qwen/Qwen2.5-Math-PRM-7B")
+    parser.add_argument("--file_name", type=str, default="mcts")
+    return parser.parse_args()
 
 
-@dataclass
-class Node:
-    # List of tensors, each of shape (1, stage_len)
-    token_stages: List[torch.Tensor]
-    depth: int
-    parent: Optional["Node"] = None
-    children: List["Node"] = field(default_factory=list)
-    visit_count: int = 0
-    total_value: float = 0.0
-
-    @property
-    def tokens(self) -> torch.Tensor:
-        """Concatenate all stages into a single tensor."""
-        if not self.token_stages:
-            return torch.empty((1, 0), dtype=torch.long)
-        return torch.cat(self.token_stages, dim=1)
-
-    def is_terminal(self) -> bool:
-        if self.depth == 0:
-            return False
-        if not self.token_stages:
-            return False
-        return (self.token_stages[-1][0, -1] == 128009).item()
-
-    @property
-    def score(self) -> float:
-        c = math.sqrt(2)
-        if self.visit_count == 0:
-            return float("inf")
-        exploitation = self.total_value / self.visit_count
-        exploration = c * math.sqrt(math.log(self.parent.visit_count) / self.visit_count)
-        return exploitation + exploration
-
-    @property
-    def value(self) -> float:
-        if self.visit_count == 0:
-            return 0.0
-        return self.total_value / self.visit_count
-
-
-def score_node(node: Node, prm: AutoModel, prm_tokenizer: AutoTokenizer, tokenizer: AutoTokenizer) -> float:
-    # first 2 stages are the prompt and the first stage
-    steps = [tokenizer.decode(node.token_stages[0][0]) + tokenizer.decode(node.token_stages[1][0])]
-
-    # Add remaining stages
-    for stage_tokens in node.token_stages[2:]:
-        decoded = tokenizer.decode(stage_tokens[0])
-        steps.append(decoded)
-
-    conversation_str = "<extra_0>".join([x.strip() for x in steps])
-    conversation_str += "<extra_0>"
-    input_ids = prm_tokenizer.encode(
-        conversation_str,
-        return_tensors="pt",
-    ).to(prm.device)
-
-    outputs = prm(input_ids=input_ids)
-    step_sep_id = prm_tokenizer.encode("<extra_0>")[0]
-    token_masks = input_ids == step_sep_id
-
-    probabilities = F.softmax(outputs[0], dim=-1)
-    probabilities = probabilities * token_masks.unsqueeze(-1)
-    assert probabilities.size(0) == 1
-    sample = probabilities[0]
-    positive_probs = sample[sample != 0].view(-1, 2)[:, 1]
-    scores = positive_probs.cpu().tolist()
-    # get last score per section 3.2.4 of https://arxiv.org/pdf/2501.07301?
-    # return scores[-1]
-    # get min score
-    return min(scores)
-
-
-class MCTS:
-    def __init__(self, model: AutoModel, tokenizer: AutoTokenizer, cfg: Config, prm: AutoModel, prm_tokenizer: AutoTokenizer):
-        self.model = model
-        self.tokenizer = tokenizer
-        self.prm = prm
-        self.prm_tokenizer = prm_tokenizer
-        self.cfg = cfg
-        self.stop_tokens = set()
-        for p in [".", ",", "\n", "\n\n", ":\n\n", ". ", ", "]:
-            self.stop_tokens.add(tokenizer.encode(p, add_special_tokens=False)[0])
-        self.stop_tokens.add(tokenizer.eos_token_id)
-        self.leaf_nodes = []
-        self.root = None
-
-    def split_stage(self, stage: torch.Tensor) -> List[torch.Tensor]:
-        stages = []
-        old_idx = 0
-        for i, token in enumerate(stage[0]):
-            if token.item() in self.stop_tokens:
-                stages.append(stage[:, old_idx : i + 1])
-                old_idx = i + 1
-
-        if old_idx < stage.size(1):
-            stages.append(stage[:, old_idx:])
-        return stages
-
-    def _expand(self, node: Node) -> None:
-        if node.is_terminal() or node.depth >= self.cfg.max_depth:
-            return
-
-        return_seq_BL = self.model.generate(
-            node.tokens,
-            attention_mask=torch.ones_like(node.tokens),
-            max_new_tokens=self.cfg.max_length_per_stage,
-            do_sample=True,
-            num_return_sequences=self.cfg.branching_factor,
+def construct_prompts(data, tokenizer: AutoTokenizer):
+    return [
+        tokenizer.apply_chat_template(
+            [{"role": "system", "content": "Please reason step by step, and put your final answer within \\boxed{}."}, {"role": "user", "content": row["problem"]}],
+            tokenize=False,
+            add_generation_prompt=True,
         )
-        for seq_L in return_seq_BL:
-            new_tokens = seq_L[node.tokens.size(1) :].unsqueeze(0)
-            new_token_stages = node.token_stages.copy()
-            new_token_stages.extend(self.split_stage(new_tokens))
-            new_node = Node(token_stages=new_token_stages, parent=node, depth=node.depth + 1)
-            node.children.append(new_node)
+        for row in data
+    ]
 
-    def _select(self, node: Node) -> Node:
-        while node.children:
-            if not all(child.visit_count > 0 for child in node.children):
-                # If there are unvisited children, visit them first
-                unvisited = [child for child in node.children if child.visit_count == 0]
-                return random.choice(unvisited)
-                # scored_unvisited = [(child, score_node(child, self.prm, self.prm_tokenizer, self.tokenizer))
-                #                   for child in unvisited]
-                # return max(scored_unvisited, key=lambda x: x[1])[0]
 
-            node = max(node.children, key=lambda child: child.score)
+def check_accuracy(completion, gold):
+    answer_parsed = parse(
+        completion,
+        extraction_config=[
+            LatexExtractionConfig(
+                normalization_config=NormalizationConfig(
+                    nits=False,
+                    malformed_operators=False,
+                    basic_latex=True,
+                    equations=True,
+                    boxed=True,
+                    units=True,
+                ),
+                # Ensures that boxed is tried first
+                boxed_match_priority=0,
+                try_extract_without_anchor=False,
+            )
+        ],
+        extraction_mode="first_match",
+    )
+    return bool(verify(answer_parsed, gold)), answer_parsed
 
-            if node.is_terminal() or node.depth >= self.cfg.max_depth:
-                return node
 
-        return node
+def evaluate_responses(responses, data, file_name=""):
+    scores = []
+    parsed_answers = []
+    for response, row in zip(responses, data):
+        score, parsed = check_accuracy(response, row["answer"])
+        scores.append(score)
+        parsed_answers.append(parsed)
+    # save responses
+    with open(f"responses_{file_name}.jsonl", "w") as f:
+        for response in responses:
+            f.write(json.dumps({"response": response}) + "\n")
 
-    def _simulate(self, node: Node) -> float:
-        if node.is_terminal() or node.depth >= self.cfg.max_depth:
-            return node.value
-        return_seq_1L = self.model.generate(
-            node.tokens,
-            attention_mask=torch.ones_like(node.tokens),
-            max_new_tokens=self.cfg.simulate_max_length,
-            do_sample=False,
-            temperature=None,
-            top_p=None,
-        )
+    score = sum(scores)
+    total = len(scores)
+    print(f"Accuracy: {score}/{total} ({score/total:.2%})")
 
-        if return_seq_1L[0, -1] == self.tokenizer.eos_token_id:
-            return_seq_1L = return_seq_1L[:, :-1]
 
-        new_tokens = return_seq_1L[:, node.tokens.size(1) :]
+if __name__ == "__main__":
+    args = get_args()
+    data = get_data()
+    model = LLM(args.model_name, tensor_parallel_size=2, gpu_memory_utilization=0.8)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    prm = AutoModel.from_pretrained(args.prm_model_name, trust_remote_code=True, torch_dtype=torch.bfloat16, device_map="auto")
+    prm_tokenizer = AutoTokenizer.from_pretrained(args.prm_model_name)
+    prompts = construct_prompts(data, tokenizer)
 
-        new_token_stages = node.token_stages.copy()
-        new_token_stages.extend(self.split_stage(new_tokens))
+    responses = []
+    for prompt in tqdm(prompts):
+        out = model.generate([prompt], SamplingParams(temperature=0.3, max_tokens=32768, seed=0, top_p=0.95))
+        generated_response = out[0].outputs[0].text
+        generated_responses = [x.outputs[0].text for x in out]
+        responses.extend(generated_responses)
 
-        new_leaf_node = Node(
-            token_stages=new_token_stages,
-            parent=node,
-            depth=node.depth + 1,
-        )
+    evaluate_responses(responses, data, f"{args.file_name}_baseline")
 
-        score = score_node(new_leaf_node, self.prm, self.prm_tokenizer, self.tokenizer)
-        new_leaf_node.total_value = score
-        new_leaf_node.visit_count = 1
-        self.leaf_nodes.append(new_leaf_node)
-        return score
+    with torch.no_grad():
+        responses = []
+        for prompt in tqdm(prompts):
+            mcts = MCTS(
+                model=model,
+                tokenizer=tokenizer,
+                cfg=Config(
+                    branching_factor=8,
+                    max_length_per_stage=256,
+                    max_depth=64,
+                    simulate_max_length=32768,
+                    num_steps=8,
+                ),
+                prm=prm,
+                prm_tokenizer=prm_tokenizer,
+            )
+            node = mcts.step(prompt)
+            responses.append(node.sequence)
 
-    def _backpropagate(self, node: Node, reward: float) -> None:
-        while node is not None:
-            node.visit_count += 1
-            node.total_value += reward
-            node = node.parent
+    evaluate_responses(responses, data, f"{args.file_name}_mcts_8")
 
-    def step(self, initial_tokens: torch.Tensor) -> Node:
-        root = Node(token_stages=[initial_tokens.to(self.model.device)], depth=0)
-        self.root = root
+    with torch.no_grad():
+        responses = []
+        for prompt in tqdm(prompts):
+            mcts = MCTS(
+                model=model,
+                tokenizer=tokenizer,
+                cfg=Config(
+                    branching_factor=16,
+                    max_length_per_stage=256,
+                    max_depth=64,
+                    simulate_max_length=32768,
+                    num_steps=8,
+                ),
+                prm=prm,
+                prm_tokenizer=prm_tokenizer,
+            )
+            node = mcts.step(prompt)
+            responses.append(node.sequence)
 
-        for _ in range(self.cfg.num_steps):
-            leaf = self._select(root)
-            self._expand(leaf)
-            reward = self._simulate(leaf)
-            self._backpropagate(leaf, reward)
-        return max(self.leaf_nodes, key=lambda node: node.value)
+    evaluate_responses(responses, data, f"{args.file_name}_mcts_16")

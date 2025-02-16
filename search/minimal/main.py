@@ -1,25 +1,11 @@
+import math
+import random
+from dataclasses import dataclass, field
+from typing import List, Optional
+
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
-import json
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
-from dataclasses import dataclass, field
-from typing import Optional, List, Union, Dict
-import random
-import math
-
-from lm_eval import simple_evaluate
-from lm_eval.evaluator_utils import TaskOutput
-from lm_eval.api.model import LM
-
-
-@dataclass
-class Config:
-    branching_factor: int = 5
-    max_length_per_stage: int = 50
-    simulate_max_length: int = 100
-    num_steps: int = 5
-    max_depth: int = 8
+from transformers import AutoModel, AutoTokenizer
 
 
 @dataclass
@@ -212,107 +198,3 @@ class MCTS:
             reward = self._simulate(leaf)
             self._backpropagate(leaf, reward)
         return max(self.leaf_nodes, key=lambda node: node.value)
-
-
-device = "cuda:1"
-
-
-class CustomLLaMAModel(LM):
-    def __init__(self):
-        super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
-        self.model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B-Instruct").to(device)
-        for param in self.model.parameters():
-            param.requires_grad = False
-        self.model.generation_config.pad_token_id = self.tokenizer.eos_token_id
-
-        self.prm_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-PRM-7B", trust_remote_code=True)
-        self.prm = AutoModel.from_pretrained(
-            "Qwen/Qwen2.5-Math-PRM-7B",
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True,
-        ).to(device)
-        for param in self.prm.parameters():
-            param.requires_grad = False
-
-        self.cfg = Config(branching_factor=16, max_length_per_stage=100, simulate_max_length=1004, num_steps=16, max_depth=8)
-
-    @torch.no_grad()
-    def _model_generate(self, context_tokens: torch.Tensor):
-        mcts = MCTS(self.model, self.tokenizer, self.cfg, self.prm, self.prm_tokenizer)
-        node = mcts.step(context_tokens)
-        return node.tokens
-        # return self.model.generate(context_tokens, attention_mask=torch.ones_like(context_tokens), do_sample=True, num_return_sequences=1, max_length=8192)
-
-    def generate_until(self, requests) -> List[str]:
-        res = []
-        for request in tqdm(requests):
-            context = request.args[0]
-            until = request.args[1]
-            context_tokens = self.tokenizer.encode(context, add_special_tokens=False, return_tensors="pt").to(self.model.device)
-            generated_tokens = self._model_generate(context_tokens)
-            # print(generated_tokens.shape)
-            # decoded = self.tokenizer.decode(generated_tokens[0], skip_special_tokens=False)
-            for t in generated_tokens:
-                decoded = self.tokenizer.decode(t.tolist())
-                for stop_seq in until:
-                    if stop_seq in decoded:
-                        stop_index = decoded.index(stop_seq)
-                        decoded = decoded[:stop_index]
-                        break
-                res.append(decoded)
-        return res
-
-    def loglikelihood(self, requests):
-        raise NotImplementedError
-
-    def loglikelihood_rolling(self, requests):
-        raise NotImplementedError
-
-    @property
-    def tokenizer_name(self) -> str:
-        return "meta-llama/Llama-3.2-1B-Instruct"
-
-    def chat_template(self, chat_template: Union[bool, str] = False) -> str:
-        return ""
-
-    def apply_chat_template(self, chat_history: List[Dict[str, str]]) -> str:
-        return self.tokenizer.apply_chat_template(chat_history, tokenize=False, add_generation_prompt=True)
-
-    @property
-    def eot_token_id(self) -> int:
-        return self.tokenizer.eos_id()
-
-    @property
-    def max_length(self) -> int:
-        return self.model_params.max_seq_len
-
-    @property
-    def max_gen_toks(self) -> int:
-        return 256
-
-    @property
-    def batch_size(self) -> int:
-        return 12
-
-    @property
-    def device(self) -> str:
-        return "cuda"
-
-
-model = CustomLLaMAModel()
-with torch.no_grad():
-    results = simple_evaluate(
-        model=model,
-        tasks=["gsm8k_cot_llama"],
-        apply_chat_template=True,
-        fewshot_as_multiturn=True,
-        num_fewshot=8,
-        device="cuda",
-        batch_size=64,  # not used
-    )
-
-with open(f"results.json", "w") as f:
-    json.dump(results, f)
-
-print(results["results"])

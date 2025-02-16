@@ -124,8 +124,6 @@ def evaluate_aime(dataset, model: nn.Module, tokenizer, max_length: int = 1024, 
 
         problem_text = item["problem"]
         correct_answer = int(item["answer"])
-
-        # Make n attempts for each problem
         attempts = make_n_attempts(problem_text, model, tokenizer, n_attempts, max_length, temperature)
         is_correct, first_correct = evaluate_pass_at_n(attempts, correct_answer)
 
