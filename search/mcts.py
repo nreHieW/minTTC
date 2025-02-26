@@ -133,8 +133,7 @@ class MCTS:
             if not all(child.visit_count > 0 for child in node.children):
                 unvisited = [child for child in node.children if child.visit_count == 0]
                 return random.choice(unvisited)
-                # scored_unvisited = [(child, score_node(child, self.prm, self.prm_tokenizer, self.tokenizer))
-                #                   for child in unvisited]
+                # scored_unvisited = [(child, score_node(child, self.prm, self.prm_tokenizer)) for child in unvisited]
                 # return max(scored_unvisited, key=lambda x: x[1])[0]
 
             node = max(node.children, key=lambda child: child.score)

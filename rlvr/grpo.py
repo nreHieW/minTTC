@@ -7,104 +7,12 @@ from datasets import Dataset
 from trl import GRPOTrainer, GRPOConfig
 from trl.data_utils import maybe_apply_chat_template
 from trl.models import unwrap_model_for_generation
-from utils import extract_answer, check_accuracy
-from transformers import AutoModelForCausalLM
-from muon import Muon
-import os
-import math
-
-
-class MultiOptimizer:
-    def __init__(self, optimizers):
-        self.param_groups = []
-        for opt in optimizers:
-            self.param_groups.extend(opt.param_groups)
-
-        self.optimizers = optimizers
-
-    def step(self, closure=None):
-        for optimizer in self.optimizers:
-            optimizer.step()
-
-    def zero_grad(self):
-        for optimizer in self.optimizers:
-            optimizer.zero_grad()
-
-    def set_lr(self, multiplier):
-        for optimizer in self.optimizers:
-            for group in optimizer.param_groups:
-                if "initial_lr" not in group:
-                    group["initial_lr"] = group["lr"]
-                group["lr"] = group["initial_lr"] * multiplier
-
-
-class Scheduler:
-    def __init__(self, args: GRPOConfig, optimizer: MultiOptimizer, num_training_steps: int):
-        self.args = args
-        self.iter = 0
-        self.optimizer = optimizer
-        self.num_training_steps = num_training_steps
-
-    def step(self, closure=None):
-        self.iter += 1
-        multiplier = get_lr_multiplier(self.iter, self.num_training_steps, self.args.warmup_ratio)
-        self.optimizer.set_lr(multiplier)
-
-    def get_last_lr(self):
-        return [self.optimizer.param_groups[0]["lr"]]
-
-
-def get_lr_multiplier(step: int, max_steps: int, warmup_ratio: float) -> float:
-    warmup_steps = int(max_steps * warmup_ratio)
-
-    if step < warmup_steps:
-        # During warmup, return the proportion of steps completed
-        return step / warmup_steps
-
-    # After warmup, apply cosine decay from 1.0 to 0.0
-    progress = (step - warmup_steps) / (max_steps - warmup_steps)
-    return 0.5 * (1 + math.cos(math.pi * progress))
-
-
-def configure_optimizers(model: AutoModelForCausalLM, cfg: GRPOConfig) -> torch.optim.Optimizer:
-    # https://github.com/KellerJordan/modded-nanogpt/blob/master/train_gpt.py
-    params_dict = {}
-
-    # First, categorize all parameters
-    for name, param in model.named_parameters():
-        if "lm_head" in name:
-            params_dict[param] = "head"
-        elif "embed" in name:
-            params_dict[param] = "embed"
-        elif param.ndim >= 2:
-            params_dict[param] = "hidden_matrix"
-        else:
-            params_dict[param] = "scalar"
-
-    hidden_matrix_params = [p for p, group in params_dict.items() if group == "hidden_matrix"]
-    embed_params = [p for p, group in params_dict.items() if group == "embed"]
-    scalar_params = [p for p, group in params_dict.items() if group == "scalar"]
-    head_params = [p for p, group in params_dict.items() if group == "head"]
-
-    adam_params = [dict(params=head_params, lr=cfg.learning_rate), dict(params=embed_params, lr=cfg.learning_rate), dict(params=scalar_params, lr=cfg.learning_rate)]
-
-    optimizer1 = torch.optim.Adam(adam_params, betas=(cfg.adam_beta1, cfg.adam_beta2), weight_decay=cfg.weight_decay)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate, betas=(cfg.adam_beta1, cfg.adam_beta2), weight_decay=cfg.weight_decay)
-    optimizer2 = Muon(hidden_matrix_params, lr=0.0005, momentum=0.95, rank=int(os.environ["RANK"]), world_size=int(os.environ["WORLD_SIZE"]))
-
-    return MultiOptimizer([optimizer1, optimizer2])
-    # return MultiOptimizer([optimizer])
-    # return optimizer
 
 
 class CustomGRPOTrainer(GRPOTrainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.completions = []
-
-    def create_optimizer_and_scheduler(self, num_training_steps: int):
-        self.optimizer = configure_optimizers(self.model, self.args)
-        self.lr_scheduler = Scheduler(self.args, self.optimizer, num_training_steps)
 
     @torch.no_grad()
     def evaluate(

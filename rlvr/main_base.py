@@ -26,11 +26,13 @@ def get_args():
 
 
 def extract_answer(response: str) -> str:
+    if "<answer>" not in response:
+        return ""
     return response.split("<answer>")[-1].split("</answer>")[0].strip()
 
 
 def accuracy_reward(completions: list[str], answer: list[str], **kwargs) -> list[float]:
-    return [2.0 if extract_answer(completion) == a else 0.0 for completion, a in zip(completions, answer)]
+    return [1.0 if extract_answer(completion) == a else 0.0 for completion, a in zip(completions, answer)]
 
 
 def strict_format_reward(completions: list[str], **kwargs) -> list[float]:
@@ -74,7 +76,7 @@ def main():
         num_train_epochs=1,
         eval_on_start=True,
         bf16=True,
-        beta=0.001,
+        beta=0,
         ddp_find_unused_parameters=False,
         # use_vllm=True,
         # vllm_gpu_memory_utilization=0.5,
@@ -98,7 +100,8 @@ def main():
     trainer = CustomGRPOTrainer(
         model=model,
         processing_class=tokenizer,
-        reward_funcs=[accuracy_reward, strict_format_reward],
+        # reward_funcs=[accuracy_reward, strict_format_reward],
+        reward_funcs=[accuracy_reward],
         args=cfg,
         train_dataset=train_ds,
         eval_dataset=eval_ds,

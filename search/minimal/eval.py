@@ -211,8 +211,8 @@ device = "cuda:1"
 class CustomLLaMAModel(LM):
     def __init__(self):
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
-        self.model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B-Instruct").to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct")
+        self.model = AutoModelForCausalLM.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct").to(device)
         for param in self.model.parameters():
             param.requires_grad = False
         self.model.generation_config.pad_token_id = self.tokenizer.eos_token_id
@@ -267,7 +267,7 @@ class CustomLLaMAModel(LM):
     def chat_template(self, chat_template: Union[bool, str] = False) -> str:
         return ""
 
-    def apply_chat_template(self, chat_history: List[Dict[str, str]]) -> str:
+    def apply_chat_template(self, chat_history: List[Dict[str, str]], **kwargs) -> str:
         return self.tokenizer.apply_chat_template(chat_history, tokenize=False, add_generation_prompt=True)
 
     @property
