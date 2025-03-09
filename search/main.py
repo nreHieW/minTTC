@@ -20,7 +20,7 @@ def get_data():
 
 def get_args():
     parser = ArgumentParser()
-    parser.add_argument("--model_name", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+    parser.add_argument("--model_name", type=str, default="Qwen/QwQ-32B")
     parser.add_argument("--prm_model_name", type=str, default="Qwen/Qwen2.5-Math-PRM-7B")
     parser.add_argument("--file_name", type=str, default="mcts")
     return parser.parse_args()
@@ -86,14 +86,14 @@ if __name__ == "__main__":
     prm_tokenizer = AutoTokenizer.from_pretrained(args.prm_model_name)
     prompts = construct_prompts(data, tokenizer)
 
-    # responses = []
-    # for prompt in tqdm(prompts):
-    #     out = model.generate([prompt], SamplingParams(temperature=0.3, max_tokens=32768, seed=0, top_p=0.95))
-    #     generated_response = out[0].outputs[0].text
-    #     generated_responses = [x.outputs[0].text for x in out]
-    #     responses.extend(generated_responses)
+    responses = []
+    for prompt in tqdm(prompts):
+        out = model.generate([prompt], SamplingParams(temperature=0.3, max_tokens=32768, seed=0, top_p=0.95))
+        generated_response = out[0].outputs[0].text
+        generated_responses = [x.outputs[0].text for x in out]
+        responses.extend(generated_responses)
 
-    # evaluate_responses(responses, data, f"{args.file_name}_baseline")
+    evaluate_responses(responses, data, f"{args.file_name}_baseline")
 
     with torch.no_grad():
         responses = []
